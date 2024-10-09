@@ -11,7 +11,7 @@ dockerpush: dockerbuild testdocker
 	docker push ${DOCKERREPO}/${IMAGENAME}:${VERSION}
 
 test:
-	./venv/bin/ptw
+	./venv/bin/ptw workflow_ingester
 
 testonce:
 	./venv/bin/pytest
