@@ -121,7 +121,7 @@ def get_file_from_s3(s3_client: botocore.client, bucket_name: str, key: str) -> 
         return None
 
 
-def interpret_message(msg: str, ades_url: str) -> tuple:
+def interpret_message(msg: str, ades_url: str, delay: int = 0) -> tuple:
     """
     Interpret Pulsar message to create, update or delete catalogs in S3.
     """
@@ -164,6 +164,7 @@ def interpret_message(msg: str, ades_url: str) -> tuple:
                 continue
             if ades_api.create(workspace_name, workflow_id, data_str):
                 copy_file(s3_client, bucket_name, key, dest_key)
+                time.sleep(delay)
         if key.endswith(".access-policy.json"):
             dest_key = f"deployed/{workspace_name}/{get_file_name(key)}"
             copy_file(s3_client, bucket_name, key, dest_key)
@@ -181,6 +182,7 @@ def interpret_message(msg: str, ades_url: str) -> tuple:
                 continue
             if ades_api.update(workspace_name, workflow_id, data_str):
                 copy_file(s3_client, bucket_name, key, dest_key)
+                time.sleep(delay)
         if key.endswith(".access-policy.json"):
             dest_key = f"deployed/{workspace_name}/{get_file_name(key)}"
             copy_file(s3_client, bucket_name, key, dest_key)
@@ -210,7 +212,7 @@ def interpret_message(msg: str, ades_url: str) -> tuple:
             delete_file(s3_client, bucket_name, dest_key)
 
 
-def main(consumer: pulsar.Consumer, ades_url: str):
+def main(consumer: pulsar.Consumer, ades_url: str, delay: int = 0):
     """
     Accept messages from a Pulsar broker.
     """
@@ -221,7 +223,7 @@ def main(consumer: pulsar.Consumer, ades_url: str):
             print(msg)
             logging.info(f"Parsing harvested message {msg.data()}")
             decoded_msg = msg.data().decode("utf-8")
-            interpret_message(decoded_msg, ades_url)
+            interpret_message(decoded_msg, ades_url, delay)
             consumer.acknowledge(msg)
         except Exception as err:
             logger.debug(traceback.format_exc())
@@ -236,10 +238,11 @@ if __name__ == "__main__":
     topic = os.environ.get("PULSAR_TOPIC", "")
     identifier = os.environ.get("IDENTIFIER", "")
     ades_url = os.environ.get("ADES_URL", "")
+    delay = int(os.environ.get("DELAY", 0))
     client = pulsar.Client(pulsar_url)
     if identifier:
         identifier = f"-{identifier}"
     consumer = client.subscribe(
         topic=topic, subscription_name=f"workspace-catalog-generator{identifier}"
     )
-    main(consumer, ades_url)
+    main(consumer, ades_url, delay)

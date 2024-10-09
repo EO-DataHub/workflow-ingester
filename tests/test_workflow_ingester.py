@@ -323,7 +323,7 @@ def test_main(mock_logger, mock_interpret_message):
 
     # Assert that interpret_message was called with the correct arguments
     mock_interpret_message.assert_any_call(
-        mock_message_1.data.return_value.decode("utf-8"), ades_url
+        mock_message_1.data.return_value.decode("utf-8"), ades_url, 0
     )
 
     # Assert that the consumer's acknowledge method was called with the mock messages
