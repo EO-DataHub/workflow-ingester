@@ -44,9 +44,11 @@ def copy_file(s3_client: botocore.client, bucket_name: str, source_key: str, des
         copy_source = {"Bucket": bucket_name, "Key": source_key}
         s3_client.copy_object(CopySource=copy_source, Bucket=bucket_name, Key=dest_key)
         logger.info("Copied workflow file from %s to %s", source_key, dest_key)
+        return True
     except Exception as e:
         logger.error("Failed to copy workflow file from %s to %s", source_key, dest_key)
         logger.error(f"Error copying object: {e}")
+        return False
 
 
 def delete_file(s3_client: botocore.client, bucket_name: str, key: str):
@@ -57,9 +59,11 @@ def delete_file(s3_client: botocore.client, bucket_name: str, key: str):
         logger.info("Deleting workflow file from %s", key)
         s3_client.delete_object(Bucket=bucket_name, Key=key)
         logger.info("Deleted workflow file from %s", key)
+        return True
     except Exception as e:
         logger.error("Failed to delete workflow file from %s", key)
         logger.error(f"Error deleting object: {e}")
+        return False
 
 
 def get_s3_client() -> boto3.client:
@@ -139,10 +143,24 @@ def interpret_message(msg: str, ades_url: str, delay: int = 0) -> tuple:
     updated_keys = msg_json["updated_keys"]
     deleted_keys = msg_json["deleted_keys"]
 
+    if added_keys:
+        added_keys.sort(key=lambda x: x.split(".")[-1])  # sort added keys by file type, cwl first
+
+    if updated_keys:
+        updated_keys.sort(
+            key=lambda x: x.split(".")[-1]
+        )  # sort updated keys by file type, cwl first
+
     if deleted_keys:
         deleted_keys.sort(
             key=lambda x: x.split(".")[-1]
         )  # sort deleted keys by file type, cwl first
+
+    # Track added files as they are added
+    added_workflows = []
+
+    # Track updated files as they are updated
+    updated_workflows = []
 
     # Track deleted files as they are deleted
     deleted_workflows = []
@@ -163,11 +181,17 @@ def interpret_message(msg: str, ades_url: str, delay: int = 0) -> tuple:
                 logger.warning("Skipping workflow %s in workspace %s", key, workspace_name)
                 continue
             if ades_api.create(workspace_name, workflow_id, data_str):
-                copy_file(s3_client, bucket_name, key, dest_key)
-                time.sleep(delay)
-        if key.endswith(".access-policy.json"):
+                if copy_file(s3_client, bucket_name, key, dest_key):
+                    print("called")
+                    added_workflows.append(workflow_id)
+                    time.sleep(delay)
+        if (
+            key.endswith(".access-policy.json")
+            and get_file_name(key).replace(".access-policy.json", "") in added_workflows
+        ):
             dest_key = f"deployed/{workspace_name}/{get_file_name(key)}"
             copy_file(s3_client, bucket_name, key, dest_key)
+            print("called")
     for key in updated_keys:
         workspace_name = get_workspace(key)
         if key.endswith(".cwl"):
@@ -181,9 +205,13 @@ def interpret_message(msg: str, ades_url: str, delay: int = 0) -> tuple:
                 logger.warning("Skipping key %s in workspace %s", key, workspace_name)
                 continue
             if ades_api.update(workspace_name, workflow_id, data_str):
-                copy_file(s3_client, bucket_name, key, dest_key)
-                time.sleep(delay)
-        if key.endswith(".access-policy.json"):
+                if copy_file(s3_client, bucket_name, key, dest_key):
+                    updated_workflows.append(workflow_id)
+                    time.sleep(delay)
+        if (
+            key.endswith(".access-policy.json")
+            and get_file_name(key).replace(".access-policy.json", "") in updated_workflows
+        ):
             dest_key = f"deployed/{workspace_name}/{get_file_name(key)}"
             copy_file(s3_client, bucket_name, key, dest_key)
     for key in deleted_keys:
@@ -201,8 +229,8 @@ def interpret_message(msg: str, ades_url: str, delay: int = 0) -> tuple:
                 logger.warning("Skipping key %s in workspace %s", key, workspace_name)
                 continue
             if ades_api.delete(workspace_name, workflow_id):
-                delete_file(s3_client, bucket_name, dest_key)
-                deleted_workflows.append(workflow_id)
+                if delete_file(s3_client, bucket_name, dest_key):
+                    deleted_workflows.append(workflow_id)
         if (
             key.endswith(".access-policy.json")
             and get_file_name(key).replace(".access-policy.json", "") in deleted_workflows

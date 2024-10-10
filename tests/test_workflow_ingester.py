@@ -207,9 +207,10 @@ def test_interpret_message_skip_invalid_workflow(mock_get_s3_client, mock_AdesAp
     mock_s3_client.copy_object.assert_not_called()
 
 
+@mock.patch("workflow_ingester.__main__.get_workflow_id")
 @mock.patch("workflow_ingester.__main__.get_s3_client")
 @mock.patch("workflow_ingester.__main__.AdesApiClient")
-def test_policy_files(MockAdesApiClient, MockGetS3Client):
+def test_policy_files(MockAdesApiClient, MockGetS3Client, MockGetWorkflowId):
     # Create mock instances
     mock_ades_api = MockAdesApiClient.return_value
     mock_s3_client = MockGetS3Client.return_value
@@ -217,8 +218,12 @@ def test_policy_files(MockAdesApiClient, MockGetS3Client):
     # Define mock message
     mock_message = json.dumps(
         {
-            "added_keys": ["workspace1/workflow1.access-policy.json"],
-            "updated_keys": ["workspace2/workflow2.access-policy.json"],
+            "added_keys": ["workspace1/workflow1.access-policy.json", "workspace1/workflow1.cwl"],
+            "updated_keys": [
+                "workspace2/workflow2.access-policy.json",
+                "workspace2/workflow2.cwl",
+                "workspace2/workflow2-1.access-policy.json",
+            ],
             "deleted_keys": ["workspace3/workflow3.access-policy.json"],
             "bucket_name": "test-bucket",
         }
@@ -233,9 +238,12 @@ def test_policy_files(MockAdesApiClient, MockGetS3Client):
     mock_s3_client.copy_object.return_value = None
     mock_s3_client.delete_object.return_value = None
 
+    # Mock get workflow id method
+    MockGetWorkflowId.side_effect = ["workflow1", "workflow2", "workflow3"]
+
     # Mock ADES client methods
     mock_ades_api.create.return_value = True
-    mock_ades_api.update.return_value = True
+    mock_ades_api.update.return_value = False
     mock_ades_api.delete.return_value = True
 
     # Call the function
@@ -248,10 +256,11 @@ def test_policy_files(MockAdesApiClient, MockGetS3Client):
         Key="deployed/workspace1/workflow1.access-policy.json",
     )
     mock_s3_client.copy_object.assert_any_call(
-        CopySource={"Bucket": "test-bucket", "Key": "workspace2/workflow2.access-policy.json"},
+        CopySource={"Bucket": "test-bucket", "Key": "workspace1/workflow1.cwl"},
         Bucket="test-bucket",
-        Key="deployed/workspace2/workflow2.access-policy.json",
+        Key="deployed/workspace1/workflow1.cwl",
     )
+    assert mock_s3_client.copy_object.call_count == 2
 
     # Policy not deleted as workflow wasn't deleted first
     assert mock_s3_client.delete_object.call_count == 0
