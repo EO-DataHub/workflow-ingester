@@ -40,6 +40,7 @@ def copy_file(s3_client: botocore.client, bucket_name: str, source_key: str, des
     Move the chosen file to the correct location in the workspace.
     """
     try:
+        logger.info("Copying workflow file from %s to %s", source_key, dest_key)
         copy_source = {"Bucket": bucket_name, "Key": source_key}
         s3_client.copy_object(CopySource=copy_source, Bucket=bucket_name, Key=dest_key)
         logger.info("Copied workflow file from %s to %s", source_key, dest_key)
@@ -53,6 +54,7 @@ def delete_file(s3_client: botocore.client, bucket_name: str, key: str):
     Delete the chosen file from the workspace.
     """
     try:
+        logger.info("Deleting workflow file from %s", key)
         s3_client.delete_object(Bucket=bucket_name, Key=key)
         logger.info("Deleted workflow file from %s", key)
     except Exception as e:
