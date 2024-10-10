@@ -100,11 +100,9 @@ def get_workflow_id(workflow: str) -> str:
         workflow_dict = yaml.safe_load(workflow)
         workflow_id = workflow_dict["$graph"][0]["id"]
     except yaml.YAMLError:
-        logger.error("Could not parse workflow definition")
-        logger.error("Workflow is %s", workflow)
+        logger.error("Could not parse workflow, invalid yaml")
     except KeyError:
         logger.error("Could not find workflow id in given workflow definition")
-        logger.error("Workflow is %s", workflow)
     return workflow_id
 
 
