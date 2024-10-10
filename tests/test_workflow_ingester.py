@@ -68,19 +68,6 @@ def test_get_file_from_s3():
     assert get_file_from_s3(s3_client, "test-bucket", "test-key") == "test-content"
 
 
-def test_interpret_message():
-    msg = json.dumps(
-        {
-            "added_keys": ["path/to/workflow.cwl"],
-            "updated_keys": [],
-            "deleted_keys": [],
-            "bucket_name": "test-bucket",
-        }
-    )
-    ades_url = "http://test-ades-url"
-    interpret_message(msg, ades_url)
-
-
 @mock.patch("workflow_ingester.__main__.AdesApiClient")
 @mock.patch("workflow_ingester.__main__.get_s3_client")
 def test_interpret_message_create_workflow(mock_get_s3_client, mock_AdesApiClient):
