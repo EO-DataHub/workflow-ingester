@@ -17,9 +17,7 @@ class AdesApiClient:
             f"{self.base_url}/{workspace}/ogc-api/processes", headers=headers, data=data
         )
         if response.status_code != 201:
-            logger.error(
-                "Failed to deploy workflow %s in workspace %s", workflow_id, workspace
-            )
+            logger.error("Failed to deploy workflow %s in workspace %s", workflow_id, workspace)
             logger.error("URL was %s", f"{self.base_url}/{workspace}/ogc-api/processes")
             try:
                 logger.error("Response is %s", response.json())
@@ -37,9 +35,7 @@ class AdesApiClient:
             data=data,
         )
         if response.status_code != 204:
-            logger.error(
-                "Failed to update workflow %s in workspace %s", workflow_id, workspace
-            )
+            logger.error("Failed to update workflow %s in workspace %s", workflow_id, workspace)
             logger.error(
                 "URL was %s", f"{self.base_url}/{workspace}/ogc-api/processes/{workflow_id}"
             )
@@ -52,13 +48,9 @@ class AdesApiClient:
 
     def delete(self, workspace: str, workflow_id: str):
         logger.info("Deleting workflow %s from workspace %s", workflow_id, workspace)
-        response = requests.delete(
-            f"{self.base_url}/{workspace}/ogc-api/processes/{workflow_id}"
-        )
+        response = requests.delete(f"{self.base_url}/{workspace}/ogc-api/processes/{workflow_id}")
         if response.status_code != 204:
-            logger.error(
-                "Failed to delete workflow %s in workspace %s", workflow_id, workspace
-            )
+            logger.error("Failed to delete workflow %s in workspace %s", workflow_id, workspace)
             logger.error(
                 "URL was %s", f"{self.base_url}/{workspace}/ogc-api/processes/{workflow_id}"
             )
