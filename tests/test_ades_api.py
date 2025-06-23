@@ -24,7 +24,7 @@ def test_create_success(mock_logger, mock_post, ades_api_client):
 
     assert result is True
     mock_post.assert_called_once_with(
-        "http://example.com/test_workspace/ogc-api/processes",
+        "http://example.com/test-workspace/ogc-api/processes",
         headers={"Content-Type": "application/cwl+yaml"},
         data=data,
     )
@@ -45,16 +45,16 @@ def test_create_failure(mock_logger, mock_post, ades_api_client):
 
     assert result is False
     mock_post.assert_called_once_with(
-        "http://example.com/test_workspace/ogc-api/processes",
+        "http://example.com/test-workspace/ogc-api/processes",
         headers={"Content-Type": "application/cwl+yaml"},
         data=data,
     )
     assert mock_logger.error.call_count == 3
     mock_logger.error.assert_any_call(
-        "Failed to deploy workflow %s in workspace %s", "test-workflow", "test_workspace"
+        "Failed to deploy workflow %s in workspace %s", "test-workflow", "test-workspace"
     )
     mock_logger.error.assert_any_call(
-        "URL was %s", "http://example.com/test_workspace/ogc-api/processes"
+        "URL was %s", "http://example.com/test-workspace/ogc-api/processes"
     )
     mock_logger.error.assert_any_call("Response is %s", {"error": "Bad Request"})
 
@@ -74,16 +74,16 @@ def test_create_failure_non_json_response(mock_logger, mock_post, ades_api_clien
 
     assert result is False
     mock_post.assert_called_once_with(
-        "http://example.com/test_workspace/ogc-api/processes",
+        "http://example.com/test-workspace/ogc-api/processes",
         headers={"Content-Type": "application/cwl+yaml"},
         data=data,
     )
     assert mock_logger.error.call_count == 3
     mock_logger.error.assert_any_call(
-        "Failed to deploy workflow %s in workspace %s", "test-workflow", "test_workspace"
+        "Failed to deploy workflow %s in workspace %s", "test-workflow", "test-workspace"
     )
     mock_logger.error.assert_any_call(
-        "URL was %s", "http://example.com/test_workspace/ogc-api/processes"
+        "URL was %s", "http://example.com/test-workspace/ogc-api/processes"
     )
     mock_logger.error.assert_any_call("Response is %s", "Non-JSON response")
 
@@ -101,7 +101,7 @@ def test_update_success(mock_logger, mock_put, ades_api_client):
 
     assert result is True
     mock_put.assert_called_once_with(
-        "http://example.com/test_workspace/ogc-api/processes/test-workflow",
+        "http://example.com/test-workspace/ogc-api/processes/test-workflow",
         headers={"Content-Type": "application/cwl+yaml"},
         data=data,
     )
@@ -122,16 +122,16 @@ def test_update_failure(mock_logger, mock_put, ades_api_client):
 
     assert result is False
     mock_put.assert_called_once_with(
-        "http://example.com/test_workspace/ogc-api/processes/test-workflow",
+        "http://example.com/test-workspace/ogc-api/processes/test-workflow",
         headers={"Content-Type": "application/cwl+yaml"},
         data=data,
     )
     assert mock_logger.error.call_count == 3
     mock_logger.error.assert_any_call(
-        "Failed to update workflow %s in workspace %s", "test-workflow", "test_workspace"
+        "Failed to update workflow %s in workspace %s", "test-workflow", "test-workspace"
     )
     mock_logger.error.assert_any_call(
-        "URL was %s", "http://example.com/test_workspace/ogc-api/processes/test-workflow"
+        "URL was %s", "http://example.com/test-workspace/ogc-api/processes/test-workflow"
     )
     mock_logger.error.assert_any_call("Response is %s", {"error": "Bad Request"})
 
@@ -151,16 +151,16 @@ def test_update_failure_non_json_response(mock_logger, mock_put, ades_api_client
 
     assert result is False
     mock_put.assert_called_once_with(
-        "http://example.com/test_workspace/ogc-api/processes/test-workflow",
+        "http://example.com/test-workspace/ogc-api/processes/test-workflow",
         headers={"Content-Type": "application/cwl+yaml"},
         data=data,
     )
     assert mock_logger.error.call_count == 3
     mock_logger.error.assert_any_call(
-        "Failed to update workflow %s in workspace %s", "test-workflow", "test_workspace"
+        "Failed to update workflow %s in workspace %s", "test-workflow", "test-workspace"
     )
     mock_logger.error.assert_any_call(
-        "URL was %s", "http://example.com/test_workspace/ogc-api/processes/test-workflow"
+        "URL was %s", "http://example.com/test-workspace/ogc-api/processes/test-workflow"
     )
     mock_logger.error.assert_any_call("Response is %s", "Non-JSON response")
 
@@ -177,7 +177,7 @@ def test_delete_success(mock_logger, mock_delete, ades_api_client):
 
     assert result is True
     mock_delete.assert_called_once_with(
-        "http://example.com/test_workspace/ogc-api/processes/test-workflow"
+        "http://example.com/test-workspace/ogc-api/processes/test-workflow"
     )
     mock_logger.error.assert_not_called()
 
@@ -195,14 +195,14 @@ def test_delete_failure(mock_logger, mock_delete, ades_api_client):
 
     assert result is False
     mock_delete.assert_called_once_with(
-        "http://example.com/test_workspace/ogc-api/processes/test-workflow"
+        "http://example.com/test-workspace/ogc-api/processes/test-workflow"
     )
     assert mock_logger.error.call_count == 3
     mock_logger.error.assert_any_call(
-        "Failed to delete workflow %s in workspace %s", "test-workflow", "test_workspace"
+        "Failed to delete workflow %s in workspace %s", "test-workflow", "test-workspace"
     )
     mock_logger.error.assert_any_call(
-        "URL was %s", "http://example.com/test_workspace/ogc-api/processes/test-workflow"
+        "URL was %s", "http://example.com/test-workspace/ogc-api/processes/test-workflow"
     )
     mock_logger.error.assert_any_call("Response is %s", {"error": "Bad Request"})
 
@@ -221,13 +221,13 @@ def test_delete_failure_non_json_response(mock_logger, mock_delete, ades_api_cli
 
     assert result is False
     mock_delete.assert_called_once_with(
-        "http://example.com/test_workspace/ogc-api/processes/test-workflow"
+        "http://example.com/test-workspace/ogc-api/processes/test-workflow"
     )
     assert mock_logger.error.call_count == 3
     mock_logger.error.assert_any_call(
-        "Failed to delete workflow %s in workspace %s", "test-workflow", "test_workspace"
+        "Failed to delete workflow %s in workspace %s", "test-workflow", "test-workspace"
     )
     mock_logger.error.assert_any_call(
-        "URL was %s", "http://example.com/test_workspace/ogc-api/processes/test-workflow"
+        "URL was %s", "http://example.com/test-workspace/ogc-api/processes/test-workflow"
     )
     mock_logger.error.assert_any_call("Response is %s", "Non-JSON response")
