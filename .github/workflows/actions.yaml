@@ -30,6 +30,12 @@ jobs:
       contents: read
     uses: EO-DataHub/github-actions/.github/workflows/security.yaml@main
 
+  unit-tests:
+    name: Run unit tests
+    permissions:
+      contents: read
+    uses: EO-DataHub/github-actions/.github/workflows/unit-tests-python.yaml@main
+
   get-tag-name:
     permissions:
       contents: read
