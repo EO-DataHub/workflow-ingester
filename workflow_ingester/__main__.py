@@ -13,6 +13,14 @@ import yaml
 
 from .ades_api import AdesApiClient
 
+ILLEGAL_WORKFLOW_INPUTS_RAW = os.getenv("ILLEGAL_WORKFLOW_INPUTS", "token").split(",")
+ILLEGAL_WORKFLOW_INPUTS = [input.strip().lower() for input in ILLEGAL_WORKFLOW_INPUTS_RAW]
+
+ILLEGAL_WORKFLOW_STEPS_RAW = os.getenv(
+    "ILLEGAL_WORKFLOW_STEPS", "node_stage_in,node_stage_out"
+).split(",")
+ILLEGAL_WORKFLOW_STEPS = [step.strip().lower() for step in ILLEGAL_WORKFLOW_STEPS_RAW]
+
 # create logger for stac fastapi ingester
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
@@ -97,19 +105,48 @@ def get_workspace(key: str) -> str:
     return key.split("/")[-2]
 
 
-def get_workflow_id(workflow: str) -> str:
+def check_workflow_validity(data: dict) -> tuple:
+    inputs = data.get("inputs", {})
+    logger.debug("Checking workflow inputs: %s", inputs)
+    steps = data.get("steps", {})
+    logger.debug("Checking workflow steps: %s", steps)
+    if isinstance(inputs, list):
+        for input in inputs:
+            if input["id"].lower() in ILLEGAL_WORKFLOW_INPUTS:
+                return False, f"Input {input['id']} is not allowed in workflow"
+    elif isinstance(inputs, dict):
+        for key, _ in inputs.items():
+            if key.lower() in ILLEGAL_WORKFLOW_INPUTS:
+                return False, f"Input {key} is not allowed in workflow"
+    if isinstance(steps, list):
+        for step in steps:
+            for illegal_step in ILLEGAL_WORKFLOW_STEPS:
+                if step["id"].lower().startswith(illegal_step):
+                    return False, f"Step {step['id']} is not allowed in workflow"
+    elif isinstance(steps, dict):
+        for key, _ in steps.items():
+            for illegal_step in ILLEGAL_WORKFLOW_STEPS:
+                if key.lower().startswith(illegal_step):
+                    return False, f"Step {key} is not allowed in workflow"
+    return True, data["id"]
+
+
+def get_workflow_id(workflow: str) -> tuple:
     """
     Extract workflow id from workflow cwl file
     """
-    workflow_id = None
+    print(workflow)
     try:
         workflow_dict = yaml.safe_load(workflow)
-        workflow_id = workflow_dict["$graph"][0]["id"]
+        for item in workflow_dict["$graph"]:
+            if item.get("class") == "Workflow":
+                success, details = check_workflow_validity(item)
+                return success, details
     except yaml.YAMLError:
         logger.error("Could not parse workflow, invalid yaml")
     except KeyError:
         logger.error("Could not find workflow id in given workflow definition")
-    return workflow_id
+    return False, "Could not find Workflow class in CWL graph"
 
 
 def get_file_from_s3(s3_client: botocore.client, bucket_name: str, key: str) -> str:
@@ -176,10 +213,13 @@ def interpret_message(msg: str, ades_url: str, delay: int = 0) -> tuple:
             if data_str is None:
                 logger.warning("Skipping workflow %s in workspace %s", key, workspace_name)
                 continue
-            workflow_id = get_workflow_id(data_str)
-            if workflow_id is None:
-                logger.warning("Skipping workflow %s in workspace %s", key, workspace_name)
+            success, details = get_workflow_id(data_str)
+            if not success:
+                logger.warning(
+                    "Skipping workflow %s in workspace %s as %s", key, workspace_name, details
+                )
                 continue
+            workflow_id = details
             if ades_api.create(workspace_name, workflow_id, data_str):
                 if copy_file(s3_client, bucket_name, key, dest_key):
                     print("called")
@@ -200,10 +240,13 @@ def interpret_message(msg: str, ades_url: str, delay: int = 0) -> tuple:
             if data_str is None:
                 logger.warning("Skipping key %s in workspace %s", key, workspace_name)
                 continue
-            workflow_id = get_workflow_id(data_str)
-            if workflow_id is None:
-                logger.warning("Skipping key %s in workspace %s", key, workspace_name)
+            success, details = get_workflow_id(data_str)
+            if not success:
+                logger.warning(
+                    "Skipping key %s in workspace %s as %s", key, workspace_name, details
+                )
                 continue
+            workflow_id = details
             if ades_api.update(workspace_name, workflow_id, data_str):
                 if copy_file(s3_client, bucket_name, key, dest_key):
                     updated_workflows.append(workflow_id)
@@ -224,10 +267,14 @@ def interpret_message(msg: str, ades_url: str, delay: int = 0) -> tuple:
             if data_str is None:
                 logger.warning("Skipping key %s in workspace %s", key, workspace_name)
                 continue
-            workflow_id = get_workflow_id(data_str)
-            if workflow_id is None:
-                logger.warning("Skipping key %s in workspace %s", key, workspace_name)
+            # TODO: get workflow ID from filename, perhaps, as the file has been deleted
+            success, details = get_workflow_id(data_str)
+            if not success:
+                logger.warning(
+                    "Skipping key %s in workspace %s as %s", key, workspace_name, details
+                )
                 continue
+            workflow_id = details
             if ades_api.delete(workspace_name, workflow_id):
                 if delete_file(s3_client, bucket_name, dest_key):
                     deleted_workflows.append(workflow_id)
