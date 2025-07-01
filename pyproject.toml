@@ -27,7 +27,7 @@
 
 [project]
 name = "eodhp-workflow-ingester"
-version = "0.1.0"
+dynamic = ["version"]
 description = "Ingester to deploy workflows into the ADES and move policy definitions to the correct S3 sub-directory."
 readme = "README.md"
 
@@ -113,7 +113,7 @@ changelog = "https://github.com/UKEODHP/eodhp-init-catalogs-harvest/blob/main/CH
 [build-system]
 # These are the assumed default build requirements from pip:
 # https://pip.pypa.io/en/stable/reference/pip/#pep-517-and-518-support
-requires = ["setuptools>=69.0.0", "wheel"]
+requires = ["setuptools>=69.0.0", "wheel", "setuptools-git-versioning>=2.0,<3"]
 build-backend = "setuptools.build_meta"
 
 [tool.pytest.ini_options]
@@ -124,6 +124,9 @@ markers = [
 
 [tool.setuptools]
 packages = []
+
+[tool.setuptools-git-versioning]
+enabled = true
 
 [tool.black]
 line-length = 100

@@ -6,9 +6,9 @@
 #
 black==25.1.0
     # via eodhp-workflow-ingester (pyproject.toml)
-boto3==1.38.41
+boto3==1.39.0
     # via eodhp-workflow-ingester (pyproject.toml)
-botocore==1.38.41
+botocore==1.39.0
     # via
     #   boto3
     #   eodhp-workflow-ingester (pyproject.toml)
@@ -93,7 +93,7 @@ pyyaml==6.0.2
     #   pre-commit
 requests==2.32.4
     # via eodhp-workflow-ingester (pyproject.toml)
-ruff==0.12.0
+ruff==0.12.1
     # via eodhp-workflow-ingester (pyproject.toml)
 s3transfer==0.13.0
     # via boto3

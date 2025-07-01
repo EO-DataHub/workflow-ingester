@@ -51,13 +51,51 @@ def test_get_workflow_id():
     workflow = """
     $graph:
       - id: test-workflow-id
+        class: Workflow
     """
-    assert get_workflow_id(workflow) == "test-workflow-id"
+    assert get_workflow_id(workflow)[0]
+    assert get_workflow_id(workflow)[1] == "test-workflow-id"
+
+
+def test_get_workflow_id_no_workflow():
+    workflow = """
+    $graph:
+      - id: test-workflow-id
+        class: commandLineTool
+    """
+    assert not get_workflow_id(workflow)[0]
+    assert get_workflow_id(workflow)[1] == "Could not find Workflow class in CWL graph"
+
+
+def test_get_workflow_id_illegal_inputs():
+    workflow = """
+    $graph:
+      - id: test-workflow-id
+        class: Workflow
+        inputs:
+          token:
+            type: str
+    """
+    assert not get_workflow_id(workflow)[0]
+    assert get_workflow_id(workflow)[1] == "Input token is not allowed in workflow"
+
+
+def test_get_workflow_id_illegal_steps():
+    workflow = """
+    $graph:
+      - id: test-workflow-id
+        class: Workflow
+        steps:
+          node_stage_in:
+            run: "#stagein"
+    """
+    assert not get_workflow_id(workflow)[0]
+    assert get_workflow_id(workflow)[1] == "Step node_stage_in is not allowed in workflow"
 
 
 def test_get_workflow_id_invalid_yaml():
     workflow = "invalid: yaml: content"
-    assert get_workflow_id(workflow) is None
+    assert not get_workflow_id(workflow)[0]
 
 
 def test_get_file_from_s3():
@@ -84,7 +122,9 @@ def test_interpret_message_create_workflow(mock_get_s3_client, mock_AdesApiClien
     mock_ades_api = mock.Mock()
     mock_s3_client = mock.Mock()
     mock_s3_client.get_object.return_value = {
-        "Body": mock.Mock(read=mock.Mock(return_value=b"$graph:\n  - id: test-workflow-id"))
+        "Body": mock.Mock(
+            read=mock.Mock(return_value=b"$graph:\n  - id: test-workflow-id\n    class: Workflow")
+        )
     }
 
     mock_AdesApiClient.return_value = mock_ades_api
@@ -93,7 +133,9 @@ def test_interpret_message_create_workflow(mock_get_s3_client, mock_AdesApiClien
     interpret_message(msg, ades_url)
 
     mock_ades_api.create.assert_called_once_with(
-        "test-workspace", "test-workflow-id", "$graph:\n  - id: test-workflow-id"
+        "test-workspace",
+        "test-workflow-id",
+        "$graph:\n  - id: test-workflow-id\n    class: Workflow",
     )
     mock_s3_client.copy_object.assert_called_once_with(
         CopySource={"Bucket": "test-bucket", "Key": "path/test-workspace/workflow.cwl"},
@@ -118,7 +160,9 @@ def test_interpret_message_update_workflow(mock_get_s3_client, mock_AdesApiClien
     mock_ades_api = mock.Mock()
     mock_s3_client = mock.Mock()
     mock_s3_client.get_object.return_value = {
-        "Body": mock.Mock(read=mock.Mock(return_value=b"$graph:\n  - id: test-workflow-id"))
+        "Body": mock.Mock(
+            read=mock.Mock(return_value=b"$graph:\n  - id: test-workflow-id\n    class: Workflow")
+        )
     }
 
     mock_AdesApiClient.return_value = mock_ades_api
@@ -127,7 +171,9 @@ def test_interpret_message_update_workflow(mock_get_s3_client, mock_AdesApiClien
     interpret_message(msg, ades_url)
 
     mock_ades_api.update.assert_called_once_with(
-        "test-workspace", "test-workflow-id", "$graph:\n  - id: test-workflow-id"
+        "test-workspace",
+        "test-workflow-id",
+        "$graph:\n  - id: test-workflow-id\n    class: Workflow",
     )
     mock_s3_client.copy_object.assert_called_once_with(
         CopySource={"Bucket": "test-bucket", "Key": "path/test-workspace/workflow.cwl"},
@@ -152,7 +198,9 @@ def test_interpret_message_delete_workflow(mock_get_s3_client, mock_AdesApiClien
     mock_ades_api = mock.Mock()
     mock_s3_client = mock.Mock()
     mock_s3_client.get_object.return_value = {
-        "Body": mock.Mock(read=mock.Mock(return_value=b"$graph:\n  - id: test-workflow-id"))
+        "Body": mock.Mock(
+            read=mock.Mock(return_value=b"$graph:\n  - id: test-workflow-id\n    class: Workflow")
+        )
     }
 
     mock_AdesApiClient.return_value = mock_ades_api
@@ -220,13 +268,13 @@ def test_policy_files(MockAdesApiClient, MockGetS3Client, MockGetWorkflowId):
 
     # Mock S3 client methods
     mock_s3_client.get_object.return_value = {
-        "Body": mock.Mock(read=lambda: b"$graph:\n  - id: test-workflow-id")
+        "Body": mock.Mock(read=lambda: b"$graph:\n  - id: test-workflow-id\n    class: Workflow")
     }
     mock_s3_client.copy_object.return_value = None
     mock_s3_client.delete_object.return_value = None
 
     # Mock get workflow id method
-    MockGetWorkflowId.side_effect = ["workflow1", "workflow2", "workflow3"]
+    MockGetWorkflowId.side_effect = [(True, "workflow1"), (True, "workflow2"), (True, "workflow3")]
 
     # Mock ADES client methods
     mock_ades_api.create.return_value = True
@@ -277,7 +325,7 @@ def test_policy_files_delete(MockAdesApiClient, MockGetS3Client):
 
     # Mock S3 client methods
     mock_s3_client.get_object.side_effect = [
-        {"Body": mock.Mock(read=lambda: b"$graph:\n  - id: test-workflow")},
+        {"Body": mock.Mock(read=lambda: b"$graph:\n  - id: test-workflow\n    class: Workflow")},
         {"id": "test-workflow"},
     ]
     mock_s3_client.delete_object.return_value = None

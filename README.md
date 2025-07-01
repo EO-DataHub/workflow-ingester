@@ -5,6 +5,8 @@ A repository defining an image that listens to a Pulsar topic and upon receiving
 - Copies/updates/deletes workflow policy file (`.access-policy.json`) to a new `deployed` directory in the S3 bucket
 - Deploys the workflow to the ADES under the specified workspace
 
+Note, this application currently doesn't support deleting workflows from a workspace, as the file will be deleted, meaning the workflow ID cannot be identified.
+
 This `deployed` repository is the used by the `workflow-runner-api` to identify the access policy for the given workflow.
 
 # Development of this component
