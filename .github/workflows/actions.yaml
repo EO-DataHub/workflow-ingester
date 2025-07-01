@@ -37,6 +37,8 @@ jobs:
     uses: EO-DataHub/github-actions/.github/workflows/unit-tests-python.yaml@main
 
   get-tag-name:
+    permissions:
+      contents: read
     runs-on: ubuntu-latest
     permissions:
       contents: read
