@@ -135,7 +135,6 @@ def get_workflow_id(workflow: str) -> tuple:
     """
     Extract workflow id from workflow cwl file
     """
-    print(workflow)
     try:
         workflow_dict = yaml.safe_load(workflow)
         for item in workflow_dict["$graph"]:
@@ -222,7 +221,6 @@ def interpret_message(msg: str, ades_url: str, delay: int = 0) -> tuple:
             workflow_id = details
             if ades_api.create(workspace_name, workflow_id, data_str):
                 if copy_file(s3_client, bucket_name, key, dest_key):
-                    print("called")
                     added_workflows.append(workflow_id)
                     time.sleep(delay)
         if (
@@ -231,7 +229,6 @@ def interpret_message(msg: str, ades_url: str, delay: int = 0) -> tuple:
         ):
             dest_key = f"deployed/{workspace_name}/{get_file_name(key)}"
             copy_file(s3_client, bucket_name, key, dest_key)
-            print("called")
     for key in updated_keys:
         workspace_name = get_workspace(key)
         if key.endswith(".cwl"):
@@ -295,7 +292,6 @@ def main(consumer: pulsar.Consumer, ades_url: str, delay: int = 0):
         try:
             logger.info("Waiting for message")
             msg = consumer.receive()
-            print(msg)
             logging.info(f"Parsing harvested message {msg.data()}")
             decoded_msg = msg.data().decode("utf-8")
             interpret_message(decoded_msg, ades_url, delay)
