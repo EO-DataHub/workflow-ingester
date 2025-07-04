@@ -40,8 +40,6 @@ jobs:
     permissions:
       contents: read
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
     outputs:
       image_tag: ${{ steps.get-image-tag.outputs.IMAGE_TAG }}
     steps:
