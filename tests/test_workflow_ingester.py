@@ -1,7 +1,7 @@
 import json
 from unittest import mock
 
-import botocore
+import botocore.client
 
 from workflow_ingester.__main__ import (
     copy_file,
@@ -100,9 +100,7 @@ def test_get_workflow_id_invalid_yaml():
 
 def test_get_file_from_s3():
     s3_client = mock.Mock()
-    s3_client.get_object.return_value = {
-        "Body": mock.Mock(read=mock.Mock(return_value=b"test-content"))
-    }
+    s3_client.get_object.return_value = {"Body": mock.Mock(read=mock.Mock(return_value=b"test-content"))}
     assert get_file_from_s3(s3_client, "test-bucket", "test-key") == "test-content"
 
 
@@ -122,9 +120,7 @@ def test_interpret_message_create_workflow(mock_get_s3_client, mock_AdesApiClien
     mock_ades_api = mock.Mock()
     mock_s3_client = mock.Mock()
     mock_s3_client.get_object.return_value = {
-        "Body": mock.Mock(
-            read=mock.Mock(return_value=b"$graph:\n  - id: test-workflow-id\n    class: Workflow")
-        )
+        "Body": mock.Mock(read=mock.Mock(return_value=b"$graph:\n  - id: test-workflow-id\n    class: Workflow"))
     }
 
     mock_AdesApiClient.return_value = mock_ades_api
@@ -160,9 +156,7 @@ def test_interpret_message_update_workflow(mock_get_s3_client, mock_AdesApiClien
     mock_ades_api = mock.Mock()
     mock_s3_client = mock.Mock()
     mock_s3_client.get_object.return_value = {
-        "Body": mock.Mock(
-            read=mock.Mock(return_value=b"$graph:\n  - id: test-workflow-id\n    class: Workflow")
-        )
+        "Body": mock.Mock(read=mock.Mock(return_value=b"$graph:\n  - id: test-workflow-id\n    class: Workflow"))
     }
 
     mock_AdesApiClient.return_value = mock_ades_api
@@ -198,9 +192,7 @@ def test_interpret_message_delete_workflow(mock_get_s3_client, mock_AdesApiClien
     mock_ades_api = mock.Mock()
     mock_s3_client = mock.Mock()
     mock_s3_client.get_object.return_value = {
-        "Body": mock.Mock(
-            read=mock.Mock(return_value=b"$graph:\n  - id: test-workflow-id\n    class: Workflow")
-        )
+        "Body": mock.Mock(read=mock.Mock(return_value=b"$graph:\n  - id: test-workflow-id\n    class: Workflow"))
     }
 
     mock_AdesApiClient.return_value = mock_ades_api
@@ -337,9 +329,7 @@ def test_policy_files_delete(MockAdesApiClient, MockGetS3Client):
     interpret_message(mock_message, ades_url)
 
     # Assert that the appropriate methods were called
-    mock_s3_client.delete_object.assert_any_call(
-        Bucket="test-bucket", Key="deployed/workspace1/workflow1.cwl"
-    )
+    mock_s3_client.delete_object.assert_any_call(Bucket="test-bucket", Key="deployed/workspace1/workflow1.cwl")
     mock_s3_client.delete_object.assert_any_call(
         Bucket="test-bucket", Key="deployed/workspace1/test-workflow.access-policy.json"
     )
@@ -357,18 +347,13 @@ def test_main(mock_logger, mock_interpret_message):
     consumer.receive.side_effect = [mock_message_1, Exception("Stop loop")]
     ades_url = "http://test-ades-url"
 
-    try:
-        main(consumer, ades_url)
-    except Exception as e:
-        assert str(e) == "Stop loop"
+    main(consumer, ades_url)
 
     # Assert that the consumer's receive method was called
     assert consumer.receive.call_count == 2
 
     # Assert that interpret_message was called with the correct arguments
-    mock_interpret_message.assert_any_call(
-        mock_message_1.data.return_value.decode("utf-8"), ades_url, 0
-    )
+    mock_interpret_message.assert_any_call(mock_message_1.data.return_value.decode("utf-8"), ades_url, 0)
 
     # Assert that the consumer's acknowledge method was called with the mock messages
     consumer.acknowledge.assert_any_call(mock_message_1)

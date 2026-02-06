@@ -53,9 +53,7 @@ def test_create_failure(mock_logger, mock_post, ades_api_client):
     mock_logger.error.assert_any_call(
         "Failed to deploy workflow %s in workspace %s", "test-workflow", "test-workspace"
     )
-    mock_logger.error.assert_any_call(
-        "URL was %s", "http://example.com/test-workspace/ogc-api/processes"
-    )
+    mock_logger.error.assert_any_call("URL was %s", "http://example.com/test-workspace/ogc-api/processes")
     mock_logger.error.assert_any_call("Response is %s", {"error": "Bad Request"})
 
 
@@ -82,9 +80,7 @@ def test_create_failure_non_json_response(mock_logger, mock_post, ades_api_clien
     mock_logger.error.assert_any_call(
         "Failed to deploy workflow %s in workspace %s", "test-workflow", "test-workspace"
     )
-    mock_logger.error.assert_any_call(
-        "URL was %s", "http://example.com/test-workspace/ogc-api/processes"
-    )
+    mock_logger.error.assert_any_call("URL was %s", "http://example.com/test-workspace/ogc-api/processes")
     mock_logger.error.assert_any_call("Response is %s", "Non-JSON response")
 
 
@@ -176,9 +172,7 @@ def test_delete_success(mock_logger, mock_delete, ades_api_client):
     result = ades_api_client.delete(workspace, workflow_id)
 
     assert result is True
-    mock_delete.assert_called_once_with(
-        "http://example.com/test-workspace/ogc-api/processes/test-workflow"
-    )
+    mock_delete.assert_called_once_with("http://example.com/test-workspace/ogc-api/processes/test-workflow")
     mock_logger.error.assert_not_called()
 
 
@@ -194,9 +188,7 @@ def test_delete_failure(mock_logger, mock_delete, ades_api_client):
     result = ades_api_client.delete(workspace, workflow_id)
 
     assert result is False
-    mock_delete.assert_called_once_with(
-        "http://example.com/test-workspace/ogc-api/processes/test-workflow"
-    )
+    mock_delete.assert_called_once_with("http://example.com/test-workspace/ogc-api/processes/test-workflow")
     assert mock_logger.error.call_count == 3
     mock_logger.error.assert_any_call(
         "Failed to delete workflow %s in workspace %s", "test-workflow", "test-workspace"
@@ -220,9 +212,7 @@ def test_delete_failure_non_json_response(mock_logger, mock_delete, ades_api_cli
     result = ades_api_client.delete(workspace, workflow_id)
 
     assert result is False
-    mock_delete.assert_called_once_with(
-        "http://example.com/test-workspace/ogc-api/processes/test-workflow"
-    )
+    mock_delete.assert_called_once_with("http://example.com/test-workspace/ogc-api/processes/test-workflow")
     assert mock_logger.error.call_count == 3
     mock_logger.error.assert_any_call(
         "Failed to delete workflow %s in workspace %s", "test-workflow", "test-workspace"

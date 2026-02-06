@@ -3,8 +3,10 @@ import logging
 import os
 import time
 import traceback
+from typing import Any
 
 import boto3
+import boto3.session
 import botocore.client
 import botocore.exceptions
 import pulsar
@@ -14,11 +16,9 @@ import yaml
 from .ades_api import AdesApiClient
 
 ILLEGAL_WORKFLOW_INPUTS_RAW = os.getenv("ILLEGAL_WORKFLOW_INPUTS", "token").split(",")
-ILLEGAL_WORKFLOW_INPUTS = [input.strip().lower() for input in ILLEGAL_WORKFLOW_INPUTS_RAW]
+ILLEGAL_WORKFLOW_INPUTS = [input_name.strip().lower() for input_name in ILLEGAL_WORKFLOW_INPUTS_RAW]
 
-ILLEGAL_WORKFLOW_STEPS_RAW = os.getenv(
-    "ILLEGAL_WORKFLOW_STEPS", "node_stage_in,node_stage_out"
-).split(",")
+ILLEGAL_WORKFLOW_STEPS_RAW = os.getenv("ILLEGAL_WORKFLOW_STEPS", "node_stage_in,node_stage_out").split(",")
 ILLEGAL_WORKFLOW_STEPS = [step.strip().lower() for step in ILLEGAL_WORKFLOW_STEPS_RAW]
 
 # create logger for stac fastapi ingester
@@ -43,7 +43,7 @@ ch.setFormatter(formatter)
 logger.addHandler(ch)
 
 
-def copy_file(s3_client: botocore.client, bucket_name: str, source_key: str, dest_key: str):
+def copy_file(s3_client: botocore.client.BaseClient, bucket_name: str, source_key: str, dest_key: str) -> bool:
     """
     Move the chosen file to the correct location in the workspace.
     """
@@ -53,13 +53,12 @@ def copy_file(s3_client: botocore.client, bucket_name: str, source_key: str, des
         s3_client.copy_object(CopySource=copy_source, Bucket=bucket_name, Key=dest_key)
         logger.info("Copied workflow file from %s to %s", source_key, dest_key)
         return True
-    except Exception as e:
-        logger.error("Failed to copy workflow file from %s to %s", source_key, dest_key)
-        logger.error(f"Error copying object: {e}")
+    except Exception:
+        logger.exception("Failed to copy workflow file from %s to %s", source_key, dest_key)
         return False
 
 
-def delete_file(s3_client: botocore.client, bucket_name: str, key: str):
+def delete_file(s3_client: botocore.client.BaseClient, bucket_name: str, key: str) -> bool:
     """
     Delete the chosen file from the workspace.
     """
@@ -68,13 +67,12 @@ def delete_file(s3_client: botocore.client, bucket_name: str, key: str):
         s3_client.delete_object(Bucket=bucket_name, Key=key)
         logger.info("Deleted workflow file from %s", key)
         return True
-    except Exception as e:
-        logger.error("Failed to delete workflow file from %s", key)
-        logger.error(f"Error deleting object: {e}")
+    except Exception:
+        logger.exception("Failed to delete workflow file from %s", key)
         return False
 
 
-def get_s3_client() -> boto3.client:
+def get_s3_client() -> botocore.client.BaseClient:
     """
     Generate boto3 client ready for S3 data access
     """
@@ -95,7 +93,7 @@ def get_file_name(key: str) -> str:
     """
     Extract the file name from file key.
     """
-    return key.split("/")[-1]
+    return key.rsplit("/", maxsplit=1)[-1]
 
 
 def get_workspace(key: str) -> str:
@@ -105,17 +103,17 @@ def get_workspace(key: str) -> str:
     return key.split("/")[-2]
 
 
-def check_workflow_validity(data: dict) -> tuple:
+def check_workflow_validity(data: dict[str, Any]) -> tuple[bool, str]:
     inputs = data.get("inputs", {})
     logger.debug("Checking workflow inputs: %s", inputs)
     steps = data.get("steps", {})
     logger.debug("Checking workflow steps: %s", steps)
     if isinstance(inputs, list):
-        for input in inputs:
-            if input["id"].lower() in ILLEGAL_WORKFLOW_INPUTS:
-                return False, f"Input {input['id']} is not allowed in workflow"
+        for input_item in inputs:
+            if input_item["id"].lower() in ILLEGAL_WORKFLOW_INPUTS:
+                return False, f"Input {input_item['id']} is not allowed in workflow"
     elif isinstance(inputs, dict):
-        for key, _ in inputs.items():
+        for key in inputs:
             if key.lower() in ILLEGAL_WORKFLOW_INPUTS:
                 return False, f"Input {key} is not allowed in workflow"
     if isinstance(steps, list):
@@ -124,14 +122,14 @@ def check_workflow_validity(data: dict) -> tuple:
                 if step["id"].lower().startswith(illegal_step):
                     return False, f"Step {step['id']} is not allowed in workflow"
     elif isinstance(steps, dict):
-        for key, _ in steps.items():
+        for key in steps:
             for illegal_step in ILLEGAL_WORKFLOW_STEPS:
                 if key.lower().startswith(illegal_step):
                     return False, f"Step {key} is not allowed in workflow"
     return True, data["id"]
 
 
-def get_workflow_id(workflow: str) -> tuple:
+def get_workflow_id(workflow: str) -> tuple[bool, str]:
     """
     Extract workflow id from workflow cwl file
     """
@@ -148,20 +146,19 @@ def get_workflow_id(workflow: str) -> tuple:
     return False, "Could not find Workflow class in CWL graph"
 
 
-def get_file_from_s3(s3_client: botocore.client, bucket_name: str, key: str) -> str:
+def get_file_from_s3(s3_client: botocore.client.BaseClient, bucket_name: str, key: str) -> str | None:
     """
     Get file from S3 bucket
     """
     try:
         data = s3_client.get_object(Bucket=bucket_name, Key=key)
         return data["Body"].read().decode("utf-8")
-    except botocore.exceptions.ClientError as e:
-        logger.error("Failed to get object from S3")
-        logger.error(f"Error getting object: {e}")
+    except botocore.exceptions.ClientError:
+        logger.exception("Failed to get object from S3")
         return None
 
 
-def interpret_message(msg: str, ades_url: str, delay: int = 0) -> tuple:
+def interpret_message(msg: str, ades_url: str, delay: int = 0) -> None:
     """
     Interpret Pulsar message to create, update or delete catalogs in S3.
     """
@@ -183,23 +180,19 @@ def interpret_message(msg: str, ades_url: str, delay: int = 0) -> tuple:
         added_keys.sort(key=lambda x: x.split(".")[-1])  # sort added keys by file type, cwl first
 
     if updated_keys:
-        updated_keys.sort(
-            key=lambda x: x.split(".")[-1]
-        )  # sort updated keys by file type, cwl first
+        updated_keys.sort(key=lambda x: x.split(".")[-1])  # sort updated keys by file type, cwl first
 
     if deleted_keys:
-        deleted_keys.sort(
-            key=lambda x: x.split(".")[-1]
-        )  # sort deleted keys by file type, cwl first
+        deleted_keys.sort(key=lambda x: x.split(".")[-1])  # sort deleted keys by file type, cwl first
 
     # Track added files as they are added
-    added_workflows = []
+    added_workflows: list[str] = []
 
     # Track updated files as they are updated
-    updated_workflows = []
+    updated_workflows: list[str] = []
 
     # Track deleted files as they are deleted
-    deleted_workflows = []
+    deleted_workflows: list[str] = []
 
     # Extract workspace name and bucket name
     bucket_name = msg_json["bucket_name"]
@@ -214,15 +207,14 @@ def interpret_message(msg: str, ades_url: str, delay: int = 0) -> tuple:
                 continue
             success, details = get_workflow_id(data_str)
             if not success:
-                logger.warning(
-                    "Skipping workflow %s in workspace %s as %s", key, workspace_name, details
-                )
+                logger.warning("Skipping workflow %s in workspace %s as %s", key, workspace_name, details)
                 continue
             workflow_id = details
-            if ades_api.create(workspace_name, workflow_id, data_str):
-                if copy_file(s3_client, bucket_name, key, dest_key):
-                    added_workflows.append(workflow_id)
-                    time.sleep(delay)
+            if ades_api.create(workspace_name, workflow_id, data_str) and copy_file(
+                s3_client, bucket_name, key, dest_key
+            ):
+                added_workflows.append(workflow_id)
+                time.sleep(delay)
         if (
             key.endswith(".access-policy.json")
             and get_file_name(key).replace(".access-policy.json", "") in added_workflows
@@ -239,15 +231,14 @@ def interpret_message(msg: str, ades_url: str, delay: int = 0) -> tuple:
                 continue
             success, details = get_workflow_id(data_str)
             if not success:
-                logger.warning(
-                    "Skipping key %s in workspace %s as %s", key, workspace_name, details
-                )
+                logger.warning("Skipping key %s in workspace %s as %s", key, workspace_name, details)
                 continue
             workflow_id = details
-            if ades_api.update(workspace_name, workflow_id, data_str):
-                if copy_file(s3_client, bucket_name, key, dest_key):
-                    updated_workflows.append(workflow_id)
-                    time.sleep(delay)
+            if ades_api.update(workspace_name, workflow_id, data_str) and copy_file(
+                s3_client, bucket_name, key, dest_key
+            ):
+                updated_workflows.append(workflow_id)
+                time.sleep(delay)
         if (
             key.endswith(".access-policy.json")
             and get_file_name(key).replace(".access-policy.json", "") in updated_workflows
@@ -267,14 +258,11 @@ def interpret_message(msg: str, ades_url: str, delay: int = 0) -> tuple:
             # TODO: get workflow ID from filename, perhaps, as the file has been deleted
             success, details = get_workflow_id(data_str)
             if not success:
-                logger.warning(
-                    "Skipping key %s in workspace %s as %s", key, workspace_name, details
-                )
+                logger.warning("Skipping key %s in workspace %s as %s", key, workspace_name, details)
                 continue
             workflow_id = details
-            if ades_api.delete(workspace_name, workflow_id):
-                if delete_file(s3_client, bucket_name, dest_key):
-                    deleted_workflows.append(workflow_id)
+            if ades_api.delete(workspace_name, workflow_id) and delete_file(s3_client, bucket_name, dest_key):
+                deleted_workflows.append(workflow_id)
         if (
             key.endswith(".access-policy.json")
             and get_file_name(key).replace(".access-policy.json", "") in deleted_workflows
@@ -284,22 +272,24 @@ def interpret_message(msg: str, ades_url: str, delay: int = 0) -> tuple:
             delete_file(s3_client, bucket_name, dest_key)
 
 
-def main(consumer: pulsar.Consumer, ades_url: str, delay: int = 0):
+def main(consumer: pulsar.Consumer, ades_url: str, delay: int = 0) -> None:
     """
     Accept messages from a Pulsar broker.
     """
     while True:
+        msg = None
         try:
             logger.info("Waiting for message")
             msg = consumer.receive()
-            logging.info(f"Parsing harvested message {msg.data()}")
+            logging.info("Parsing harvested message %s", msg.data())
             decoded_msg = msg.data().decode("utf-8")
             interpret_message(decoded_msg, ades_url, delay)
             consumer.acknowledge(msg)
         except Exception as err:
             logger.debug(traceback.format_exc())
             logger.error(err)
-            consumer.negative_acknowledge(msg)
+            if msg is not None:
+                consumer.negative_acknowledge(msg)
             if str(err) == "Stop loop":
                 break
 
@@ -313,7 +303,5 @@ if __name__ == "__main__":
     client = pulsar.Client(pulsar_url)
     if identifier:
         identifier = f"-{identifier}"
-    consumer = client.subscribe(
-        topic=topic, subscription_name=f"workspace-catalog-generator{identifier}"
-    )
+    consumer = client.subscribe(topic=topic, subscription_name=f"workspace-catalog-generator{identifier}")
     main(consumer, ades_url, delay)
