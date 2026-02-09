@@ -1,19 +1,21 @@
 # syntax=docker/dockerfile:1
-FROM python:3.11-slim-bullseye
+FROM ghcr.io/astral-sh/uv:python3.13-trixie-slim
 
-RUN rm -f /etc/apt/apt.conf.d/docker-clean; \
-    echo 'Binary::apt::APT::Keep-Downloaded-Packages "true";' > /etc/apt/apt.conf.d/keep-cache
-
-RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
-    --mount=type=cache,target=/var/lib/apt,sharing=locked \
-    apt-get update -y && apt-get upgrade -y
+ENV UV_NO_DEV=1
 
 WORKDIR /app
 
-COPY requirements.txt /app
+# Install dependencies
+RUN --mount=type=cache,target=/root/.cache/uv \
+    --mount=type=bind,source=uv.lock,target=uv.lock \
+    --mount=type=bind,source=pyproject.toml,target=pyproject.toml \
+    uv sync --frozen --no-install-project
 
-RUN --mount=type=cache,target=/root/.cache/pip python -m pip install -r requirements.txt
+# Copy project files
+COPY . /app
 
-COPY /workflow_ingester /app/workflow_ingester
+# Sync the project
+RUN --mount=type=cache,target=/root/.cache/uv \
+    uv sync --frozen
 
-CMD ["python", "-m", "workflow_ingester"]
+CMD ["uv", "run", "--no-sync", "python", "-m", "workflow_ingester"]
