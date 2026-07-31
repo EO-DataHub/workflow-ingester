@@ -3,7 +3,7 @@ name = "eodhp-workflow-ingester"
 dynamic = ["version"]
 description = "Ingester to deploy workflows into the ADES and move policy definitions to the correct S3 sub-directory."
 readme = "README.md"
-requires-python = ">=3.13,<3.14"
+requires-python = ">=3.14,<3.15"
 license = {file = "LICENSE"}
 authors = [
   {name = "Telespazio UK Ltd", email = "thomas.jellicoe@telespazio.com" }
