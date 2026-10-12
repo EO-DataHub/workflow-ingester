@@ -1,4 +1,14 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
-  "extends": ["github>EO-DataHub/github-actions//renovate.json5"]
+  "extends": ["github>EO-DataHub/github-actions//renovate.json5"],
+  "lockFileMaintenance": {
+    "automerge": true,
+    "minimumReleaseAgeBehaviour": "timestamp-optional"
+  },
+  "logLevelRemap": [
+    {
+      "matchMessage": "/Some .+ did not have a releaseTimestamp, but as we're running with minimumReleaseAgeBehaviour=timestamp-optional, proceeding/",
+      "newLogLevel": "info"
+    }
+  ]
 }
